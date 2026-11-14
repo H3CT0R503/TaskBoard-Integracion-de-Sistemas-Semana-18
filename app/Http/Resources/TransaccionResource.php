@@ -64,7 +64,12 @@ class TransaccionResource extends JsonResource
             'metodo' => $this->metodo,
             'comision' => $this->comision === null ? null : (float) $this->comision,
 
-            'estado' => $this->estado,
+            // ->value y no el enum a secas. Un enum con respaldo de
+            // cadena se serializa solo a su valor, así que el JSON sale
+            // igual de las dos formas; escribirlo deja dicho que lo que
+            // viaja es el texto y no el objeto, y un contrato de API
+            // conviene que sea explícito.
+            'estado' => $this->estado->value,
 
             // ISO 8601 es el formato que cualquier lenguaje sabe leer
             // y que lleva la zona horaria dentro. Mandar "27/10/2026"

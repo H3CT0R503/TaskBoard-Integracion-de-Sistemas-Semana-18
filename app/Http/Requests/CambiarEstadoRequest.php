@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\EstadoTransaccion;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -40,7 +41,10 @@ class CambiarEstadoRequest extends FormRequest
             // reabre, y dejar pasar un cambio de Iniciada a Iniciada
             // habría escrito un evento "Iniciada -> Iniciada" que no
             // cuenta nada.
-            'estado' => ['required', Rule::in(['Completada', 'Fallida'])],
+            'estado' => [
+                'required',
+                Rule::enum(EstadoTransaccion::class)->only(EstadoTransaccion::deCierre()),
+            ],
         ];
     }
 
@@ -51,7 +55,15 @@ class CambiarEstadoRequest extends FormRequest
     {
         return [
             'estado.required' => 'Debes indicar a qué estado se mueve la transacción.',
-            'estado.in' => 'Una transacción solo se puede cerrar como Completada o Fallida.',
+            // La clave es estado.enum y no estado.in, porque la
+            // regla que falla es Rule::enum. Sin este mensaje la
+            // respuesta sale en inglés ("The selected estado is
+            // invalid"), porque el proyecto está en APP_LOCALE=es pero
+            // no trae carpeta lang/es y Laravel cae a su archivo en
+            // inglés. Es la misma lección del caso E-04 de la Semana
+            // 15: el código de estado puede estar bien y el texto, que
+            // es lo único que alguien lee, estar roto.
+            'estado.enum' => 'Una transacción solo se puede cerrar como Completada o Fallida.',
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\EstadoTransaccion;
 use App\Models\User;
 use App\Services\CalculadoraComision;
 use Illuminate\Database\Seeder;
@@ -67,14 +68,14 @@ class ComercioSeeder extends Seeder
                 'metodo' => 'tarjeta',
                 'comision' => $this->comision('tarjeta', 45.00),
                 'cliente_nombre' => 'María López',
-                'estado' => 'Completada',
+                'estado' => EstadoTransaccion::Completada,
             ],
             [
                 'monto' => 12.50,
                 'metodo' => 'transferencia',
                 'comision' => $this->comision('transferencia', 12.50),
                 'cliente_nombre' => 'Juan Pérez',
-                'estado' => 'Iniciada',
+                'estado' => EstadoTransaccion::Iniciada,
             ],
         ]);
 
@@ -89,7 +90,7 @@ class ComercioSeeder extends Seeder
             'metodo' => 'tarjeta',
             'comision' => $this->comision('tarjeta', 8.00),
             'cliente_nombre' => 'Carlos Ramírez',
-            'estado' => 'Fallida',
+            'estado' => EstadoTransaccion::Fallida,
         ]);
 
         $carlos->comercios()->create([
@@ -109,7 +110,7 @@ class ComercioSeeder extends Seeder
             'metodo' => 'transferencia',
             'comision' => $this->comision('transferencia', 23.75),
             'cliente_nombre' => 'Sofía Martínez',
-            'estado' => 'Iniciada',
+            'estado' => EstadoTransaccion::Iniciada,
         ]);
     }
 

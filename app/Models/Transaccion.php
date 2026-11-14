@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EstadoTransaccion;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -44,6 +45,17 @@ class Transaccion extends Model
     protected $casts = [
         'monto' => 'decimal:2',
         'comision' => 'decimal:2',
+
+        // Semana 18 · el estado deja de ser una cadena.
+        //
+        // Con este cast, $transaccion->estado devuelve un
+        // EstadoTransaccion y no el texto 'Iniciada'. Al guardar acepta
+        // las dos cosas, el caso del enum o su valor, y al leer siempre
+        // entrega el caso. El efecto en cadena es el que importa: una
+        // comparación contra 'Iniciada' escrita a mano deja de ser
+        // verdadera, así que el cast no solo convierte el dato, obliga
+        // a encontrar los lugares donde el texto estaba suelto.
+        'estado' => EstadoTransaccion::class,
     ];
 
     /**

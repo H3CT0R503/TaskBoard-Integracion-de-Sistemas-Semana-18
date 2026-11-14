@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\EstadoTransaccion;
 use App\Models\Transaccion;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -177,13 +178,13 @@ class TransaccionService
     {
         $transaccion = $this->suya($usuario, $transaccion);
 
-        if ($transaccion->estado !== 'Iniciada') {
+        if ($transaccion->estado !== EstadoTransaccion::Iniciada) {
             throw ValidationException::withMessages([
-                'estado' => "Esta transacción ya está {$transaccion->estado} y su estado no se puede volver a cambiar.",
+                'estado' => "Esta transacción ya está {$transaccion->estado->value} y su estado no se puede volver a cambiar.",
             ]);
         }
 
-        $anterior = $transaccion->estado;
+        $anterior = $transaccion->estado->value;
 
         DB::transaction(function () use ($transaccion, $nuevo, $anterior) {
             $transaccion->update(['estado' => $nuevo]);

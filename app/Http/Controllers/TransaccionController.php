@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\EstadoTransaccion;
 use App\Http\Requests\GuardarTransaccionRequest;
 use App\Models\Comercio;
 use App\Models\Transaccion;
@@ -159,7 +160,7 @@ class TransaccionController extends Controller
 
         $comercioId = $transaccion->comercio_id;
 
-        if ($transaccion->estado === 'Completada') {
+        if ($transaccion->estado === EstadoTransaccion::Completada) {
             return redirect()
                 ->route('comercios.show', $comercioId)
                 ->with('error', 'No se puede eliminar una transacción Completada: es el respaldo de un cobro que ya se hizo.');
@@ -191,27 +192,28 @@ class TransaccionController extends Controller
     {
         $this->autorizar($transaccion);
 
-        $validos = ['Iniciada', 'Completada', 'Fallida'];
+        // Semana 18 · las dos listas escritas a mano se fueron al
+        // enum. tryFrom() devuelve null si el texto de la URL no es
+        // ninguno de los tres estados, y eso reemplaza el in_array
+        // contra $validos.
+        $destino = EstadoTransaccion::tryFrom($estado);
 
-        if (! in_array($estado, $validos)) {
+        if ($destino === null) {
             abort(400, 'Estado no válido.');
         }
 
-        $transiciones = [
-            'Iniciada' => ['Completada', 'Fallida'],
-            'Completada' => [],
-            'Fallida' => ['Iniciada'],
-        ];
-
-        if (! in_array($estado, $transiciones[$transaccion->estado] ?? [])) {
-            abort(400, "No se puede mover de {$transaccion->estado} a {$estado}.");
+        // Y el mapa de transiciones ahora lo contesta el estado actual,
+        // que es quien sabe a dónde puede ir. Antes vivía acá en un
+        // arreglo, con el nombre de cada estado repetido una vez más.
+        if (! $transaccion->estado->puedeMoverseA($destino)) {
+            abort(400, "No se puede mover de {$transaccion->estado->value} a {$destino->value}.");
         }
 
-        $transaccion->update(['estado' => $estado]);
+        $transaccion->update(['estado' => $destino]);
 
         return redirect()
             ->route('comercios.show', $transaccion->comercio_id)
-            ->with('mensaje', "Transacción movida a {$estado}.");
+            ->with('mensaje', "Transacción movida a {$destino->value}.");
     }
 
     /*

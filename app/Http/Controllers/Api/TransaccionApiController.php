@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\EstadoTransaccion;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CambiarEstadoRequest;
 use App\Http\Requests\GuardarTransaccionRequest;
@@ -141,9 +142,9 @@ class TransaccionApiController extends Controller
         // quien venía mandando estados mal escritos, y por eso va
         // anotado con ⚠ en CAMBIOS.md.
         $datos = $request->validate([
-            'estado' => ['nullable', Rule::in(['Iniciada', 'Completada', 'Fallida'])],
+            'estado' => ['nullable', Rule::enum(EstadoTransaccion::class)],
         ], [
-            'estado.in' => 'El estado debe ser Iniciada, Completada o Fallida.',
+            'estado.enum' => 'El estado debe ser Iniciada, Completada o Fallida.',
         ]);
 
         $estado = $datos['estado'] ?? null;
@@ -206,7 +207,7 @@ class TransaccionApiController extends Controller
         // tocar la base: un estado inventado, o una inyección, no está
         // en la lista y la petición muere en la validación.
         $datos = $request->validate([
-            'estado' => ['nullable', Rule::in(['Iniciada', 'Completada', 'Fallida'])],
+            'estado' => ['nullable', Rule::enum(EstadoTransaccion::class)],
             'desde' => ['nullable', 'date'],
             'hasta' => ['nullable', 'date', 'after_or_equal:desde'],
 
@@ -229,7 +230,7 @@ class TransaccionApiController extends Controller
             'monto_max' => ['nullable', 'numeric', 'min:0',
                 Rule::when($request->filled('monto_min'), ['gte:monto_min'])],
         ], [
-            'estado.in' => 'El estado debe ser Iniciada, Completada o Fallida.',
+            'estado.enum' => 'El estado debe ser Iniciada, Completada o Fallida.',
             'desde.date' => 'La fecha "desde" no tiene un formato válido.',
             'hasta.date' => 'La fecha "hasta" no tiene un formato válido.',
             'hasta.after_or_equal' => 'La fecha "hasta" no puede ser anterior a "desde".',
