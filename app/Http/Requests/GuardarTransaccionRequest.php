@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\MetodoDePagoSoportado;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -113,9 +114,21 @@ class GuardarTransaccionRequest extends FormRequest
             //          cambiaría el método a 'tarjeta' a una
             //          transferencia, en silencio y dejándola con una
             //          comisión que ya no le corresponde.
+            //
+            // La segunda regla ya no es un Rule::in con la lista de
+            // métodos escrita acá. Es MetodoDePagoSoportado, que le
+            // pregunta a la calculadora de comisiones si tiene una
+            // regla para ese método. El reto de la billetera mostró por
+            // qué: con la lista repetida, agregar un método de pago
+            // tocaba dos archivos, y olvidar este dejaba la API
+            // rechazando un método que el cálculo sí soportaba.
+            //
+            // app() y no new: la regla necesita la calculadora, y la
+            // calculadora la arma el contenedor con las reglas del
+            // AppServiceProvider.
             'metodo' => [
                 $this->isMethod('POST') ? 'required' : 'sometimes',
-                Rule::in(['tarjeta', 'transferencia']),
+                app(MetodoDePagoSoportado::class),
             ],
 
             // Las tres reglas del monto cubren los tres bordes que la
@@ -198,7 +211,6 @@ class GuardarTransaccionRequest extends FormRequest
             'monto.decimal' => 'El monto admite como máximo dos decimales.',
             'monto.max' => 'El monto no puede superar 999,999.99.',
             'estado.prohibited' => 'El estado no se envía al crear: toda transacción nace Iniciada.',
-            'metodo.in' => 'El método de pago debe ser tarjeta o transferencia.',
             // El exists falla igual si el comercio no existe o si es
             // de otra persona, y el mensaje no distingue los dos
             // casos a propósito: no tiene por qué confirmar que el

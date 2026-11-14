@@ -98,6 +98,30 @@ class RegistrarTransaccionTest extends TestCase
     }
 
     /**
+     * El reto del Laboratorio 5: billetera cobra 2 %.
+     *
+     * La prueba se escribió antes de la clase ComisionBilletera y falló
+     * con un 422 por metodo, que era la respuesta correcta en ese
+     * momento: 'billetera' no era un método de pago que esta API
+     * conociera.
+     */
+    public function test_comision_de_billetera_es_dos_por_ciento(): void
+    {
+        [$usuario, $comercio] = $this->usuarioConComercio();
+        Sanctum::actingAs($usuario);
+
+        $this->cobrar($comercio, ['metodo' => 'billetera'])
+            ->assertCreated()
+            ->assertJsonPath('data.metodo', 'billetera')
+            ->assertJsonPath('data.comision', 2);
+
+        $this->assertDatabaseHas('transacciones', [
+            'comercio_id' => $comercio->id,
+            'comision' => 2.00,
+        ]);
+    }
+
+    /**
      * La promesa de compatibilidad de la semana, escrita como prueba.
      *
      * El cliente de la Semana 14 y la colección de Bruno no envían
