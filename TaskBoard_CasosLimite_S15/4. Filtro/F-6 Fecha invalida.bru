@@ -1,0 +1,32 @@
+meta {
+  name: F-6 · Ana · desde=hola
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{host}}/transacciones/filtrar?desde=hola
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("F-6 responde 422", function () {
+    expect(res.getStatus()).to.equal(422);
+  });
+  
+  test("F-6 el error esta en desde", function () {
+    expect(res.getBody().errors).to.have.property("desde");
+  });
+}
+
+docs {
+  Esperado: 422. Problema ⑤, primera mitad.
+
+  La IA no validó las fechas, así que cualquier texto llegaba hasta la consulta.
+  La regla 'date' lo corta antes.
+}

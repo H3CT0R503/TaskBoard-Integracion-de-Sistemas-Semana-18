@@ -1,0 +1,34 @@
+meta {
+  name: M-4 · ?monto_min=-5
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{host}}/transacciones/filtrar?monto_min=-5
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("M-4 responde 422", function () {
+    expect(res.getStatus()).to.equal(422);
+  });
+  
+  test("M-4 el error esta en monto_min", function () {
+    expect(res.getBody().errors).to.have.property("monto_min");
+  });
+}
+
+docs {
+  Esperado: 422, por la regla min:0 del criterio de aceptación.
+
+  No hay cobros negativos en el sistema, así que un monto_min negativo no
+  cambiaría el resultado: devolvería lo mismo que sin el parámetro. Por eso
+  conviene rechazarlo igual — un filtro que no filtra nada y responde 200 es otra
+  forma de mentirle al cliente.
+}

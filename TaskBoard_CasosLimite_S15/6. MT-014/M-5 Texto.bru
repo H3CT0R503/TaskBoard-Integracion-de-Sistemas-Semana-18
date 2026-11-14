@@ -1,0 +1,26 @@
+meta {
+  name: M-5 · ?monto_min=abc
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{host}}/transacciones/filtrar?monto_min=abc
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("M-5 responde 422", function () {
+    expect(res.getStatus()).to.equal(422);
+  });
+}
+
+docs {
+  Esperado: 422 por la regla numeric. Lo que NO debe pasar es un 500: una API
+  robusta no se cae porque le manden texto donde esperaba un número.
+}

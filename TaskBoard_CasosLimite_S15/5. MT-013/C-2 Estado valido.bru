@@ -1,0 +1,32 @@
+meta {
+  name: C-2 · ?estado=Completada
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{host}}/transacciones?estado=Completada
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("C-2 responde 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("C-2 todas estan Completadas", function () {
+    expect(res.getBody().data.every(x => x.estado === "Completada")).to.be.true;
+  });
+}
+
+docs {
+  El control de que la corrección no rompió lo que funcionaba: un estado válido
+  sigue respondiendo igual que antes.
+
+  Esperado: 200 con solo las Completadas de Ana.
+}

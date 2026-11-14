@@ -1,0 +1,37 @@
+meta {
+  name: F-7 · Ana · rango al revés
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{host}}/transacciones/filtrar?desde=2026-11-10&hasta=2026-11-01
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("F-7 responde 422", function () {
+    expect(res.getStatus()).to.equal(422);
+  });
+  
+  test("F-7 el error esta en hasta", function () {
+    expect(res.getBody().errors).to.have.property("hasta");
+  });
+}
+
+docs {
+  Esperado: 422. Problema ⑤, segunda mitad, y es el que una IA no puede adivinar.
+
+  Las dos fechas son válidas por separado: el problema es la relación entre
+  ellas. Un rango que termina antes de empezar no es un rango, y sin la regla
+  after_or_equal la API respondería 200 con una lista vacía, que parece una
+  respuesta normal y esconde el error del cliente.
+
+  Eso es una regla del negocio, no de formato, y por eso va en rojo en el
+  semáforo: el criterio no se delega.
+}

@@ -1,0 +1,33 @@
+meta {
+  name: F-1 · Sin token
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{host}}/transacciones/filtrar
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("F-1 responde 401", function () {
+    expect(res.getStatus()).to.equal(401);
+  });
+  
+  test("F-1 no entrega ninguna transaccion", function () {
+    expect(res.getBody()).to.not.have.property("data");
+  });
+}
+
+docs {
+  Esperado: 401.
+
+  Es el problema ① del caso de la IA. La ruta que entregó el asistente estaba
+  fuera del grupo auth:sanctum, así que esta misma petición devolvía 200 con los
+  cobros de todos los usuarios. Esta prueba es la que lo habría delatado.
+}

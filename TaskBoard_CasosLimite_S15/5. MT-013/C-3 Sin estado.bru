@@ -1,0 +1,36 @@
+meta {
+  name: C-3 · sin ?estado
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{host}}/transacciones
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("C-3 responde 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("C-3 devuelve todas las de Ana", function () {
+    expect(res.getBody().data.length).to.equal(3);
+  });
+}
+
+docs {
+  El otro control. La regla lleva 'nullable' justamente para esto: sin el
+  parámetro, el listado tiene que seguir devolviendo todo.
+
+  Si alguien olvidara el 'nullable', este caso se caería con un 422 y el endpoint
+  dejaría de servir para listar. Es el tipo de daño colateral que solo detecta una
+  prueba del camino normal.
+
+  Esperado: 200 con las 3 transacciones de Ana.
+}

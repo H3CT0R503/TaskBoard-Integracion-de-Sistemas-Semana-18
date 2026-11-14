@@ -1,0 +1,34 @@
+meta {
+  name: F-4 · Ana · estado=Pagada
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{host}}/transacciones/filtrar?estado=Pagada
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("F-4 responde 422", function () {
+    expect(res.getStatus()).to.equal(422);
+  });
+  
+  test("F-4 el error esta en estado", function () {
+    expect(res.getBody().errors).to.have.property("estado");
+  });
+}
+
+docs {
+  Esperado: 422.
+
+  "Pagada" no es uno de los tres estados del sistema (Iniciada, Completada,
+  Fallida). Sin la regla Rule::in, esto respondería 200 con una lista vacía, que
+  le haría creer al cliente que no hay cobros pagados cuando en realidad el
+  estado ni existe. Un 422 dice la verdad: el parámetro está mal.
+}

@@ -1,0 +1,36 @@
+meta {
+  name: F-5 · Ana · inyección SQL
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{host}}/transacciones/filtrar?estado=x' OR '1'='1
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("F-5 responde 422", function () {
+    expect(res.getStatus()).to.equal(422);
+  });
+  
+  test("F-5 no devolvio ninguna fila", function () {
+    expect(res.getBody()).to.not.have.property("data");
+  });
+}
+
+docs {
+  Esperado: 422. Es el problema ④, y el más grave de los seis.
+
+  La versión de la IA usaba whereRaw("estado = '$estado'"), que pega el texto del
+  cliente dentro de la consulta. Con este valor la condición queda
+  estado = 'x' OR '1'='1', que es siempre verdadera, y la API devuelve la tabla
+  entera. Lo comprobé en tinker: whereRaw contó 4 filas (todas) y where contó 0.
+
+  Acá ni siquiera llega a la base: Rule::in lo rechaza en la validación.
+}

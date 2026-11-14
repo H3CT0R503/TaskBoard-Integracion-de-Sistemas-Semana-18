@@ -1,0 +1,38 @@
+meta {
+  name: F-8 · Ana · hasta = hoy
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{host}}/transacciones/filtrar?hasta=2026-11-14
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("F-8 responde 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("F-8 incluye transacciones de hoy", function () {
+    expect(res.getBody().data.length).to.be.above(0);
+  });
+}
+
+docs {
+  Esperado: 200 e incluye las de hoy.
+
+  Es el detalle fino de la guía. created_at guarda fecha Y hora, así que comparar
+  con whereBetween contra '2026-11-14' lo lee como las 00:00:00 de hoy y deja afuera todo
+  lo que pasó después: un cobro de esta mañana no aparecería.
+
+  whereDate compara solo la parte de fecha, y por eso el día de "hasta" entra
+  completo.
+
+  Ojo: la fecha está escrita a mano. Si corrés esto otro día, cambiala.
+}

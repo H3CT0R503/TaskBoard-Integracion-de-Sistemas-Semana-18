@@ -1,0 +1,36 @@
+meta {
+  name: C-1 · ?estado=Pagada
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host}}/transacciones?estado=Pagada
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("C-1 responde 422", function () {
+    expect(res.getStatus()).to.equal(422);
+  });
+  
+  test("C-1 el error esta en estado", function () {
+    expect(res.getBody().errors).to.have.property("estado");
+  });
+}
+
+docs {
+  MT-013 · el error reportado por la tienda en línea.
+
+  Antes de la corrección esto respondía 200 con "data": [], y esa respuesta miente
+  por omisión: le dice al cliente "no hay cobros pagados" cuando la verdad es que
+  "Pagada" no existe como estado. El cliente no tiene forma de distinguir un
+  filtro sin resultados de un filtro escrito mal.
+
+  Esperado: 422 con el error en estado.
+}

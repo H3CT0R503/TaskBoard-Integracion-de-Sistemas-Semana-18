@@ -1,0 +1,35 @@
+meta {
+  name: M-3 · ?monto_min=50&monto_max=10
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{host}}/transacciones/filtrar?monto_min=50&monto_max=10
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("M-3 responde 422", function () {
+    expect(res.getStatus()).to.equal(422);
+  });
+  
+  test("M-3 el error esta en monto_max", function () {
+    expect(res.getBody().errors).to.have.property("monto_max");
+  });
+}
+
+docs {
+  Esperado: 422. Es el par de M-2: acá SÍ vienen los dos parámetros, así que la
+  comparación se aplica.
+
+  Mismo razonamiento que F-7 con las fechas: los dos números son válidos por
+  separado y lo que está mal es la relación entre ellos. Sin la regla, esto
+  respondería 200 con una lista vacía, que parece una respuesta normal y esconde
+  el error del cliente.
+}

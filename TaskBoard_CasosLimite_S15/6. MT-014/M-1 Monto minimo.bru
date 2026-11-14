@@ -1,0 +1,35 @@
+meta {
+  name: M-1 · ?monto_min=20
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host}}/transacciones/filtrar?monto_min=20
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("M-1 responde 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("M-1 ninguna baja de 20", function () {
+    expect(res.getBody().data.every(x => x.monto >= 20)).to.be.true;
+  });
+}
+
+docs {
+  MT-014 · el caso normal del parámetro nuevo.
+
+  Esperado: 200 con solo los cobros de 20 o más. Con el seeder queda uno, el de 45.
+
+  La segunda prueba afirma el VALOR y no solo el código: si alguien invirtiera los
+  operadores (>= por <=), esto seguiría respondiendo 200 con una lista de
+  transacciones perfectamente creíble, pero serían las de enfrente.
+}

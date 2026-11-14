@@ -1,0 +1,36 @@
+meta {
+  name: M-2 · ?monto_max=100 (sin mínimo)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{host}}/transacciones/filtrar?monto_max=100
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("M-2 responde 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("M-2 ninguna pasa de 100", function () {
+    expect(res.getBody().data.every(x => x.monto <= 100)).to.be.true;
+  });
+}
+
+docs {
+  Esperado: 200. Es el caso que destapa la trampa de la guía.
+
+  La IA propuso la regla 'gte:monto_min' a secas, y con eso esta petición fallaba
+  con 422: la regla intenta comparar contra un campo que no vino. Pero el criterio
+  de aceptación de MT-014 dice que la comparación aplica SOLO cuando se envían los
+  dos.
+
+  Se corrigió con Rule::when($request->filled('monto_min'), ['gte:monto_min']).
+}

@@ -1,0 +1,42 @@
+meta {
+  name: F-3 · Carlos · estado=Completada
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{host}}/transacciones/filtrar?estado=Completada
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenCarlos}}
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("F-3 responde 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("F-3 ninguna es de Ana", function () {
+    expect(res.getBody().data.every(x => [3, 4].includes(x.comercio_id))).to.be.true;
+  });
+}
+
+docs {
+  Esperado: 200 con solo lo de Carlos.
+
+  Con el seeder, Carlos no tiene ninguna transacción Completada, así que la
+  respuesta es una lista vacía. Eso NO es un error: 200 con data vacía significa
+  "la consulta se entendió y no hay coincidencias", que es distinto de un 404.
+
+  Y es justamente el par de F-2: misma URL, mismo parámetro, otro token, otra
+  respuesta. Si las dos devolvieran lo mismo, el filtro por usuario no existiría.
+
+  Hay que correr antes "Login Carlos", que llena {{tokenCarlos}}.
+}

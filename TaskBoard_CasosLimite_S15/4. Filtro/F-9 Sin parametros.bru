@@ -1,0 +1,30 @@
+meta {
+  name: F-9 · Ana · sin parámetros
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{host}}/transacciones/filtrar
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("F-9 responde 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Esperado: 200 con todas las transacciones de Ana.
+
+  No está en la tabla de la guía, lo agregué yo. Los tres parámetros son
+  opcionales, y una regla 'required' puesta de más rompería este caso sin que
+  nadie lo notara: el endpoint dejaría de servir para listar y solo serviría para
+  filtrar.
+}

@@ -1,0 +1,36 @@
+meta {
+  name: M-6 · ?estado=Completada&monto_min=20
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{host}}/transacciones/filtrar?estado=Completada&monto_min=20
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("M-6 responde 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("M-6 cumple las dos condiciones", function () {
+    expect(res.getBody().data.every(x => x.estado === "Completada" && x.monto >= 20)).to.be.true;
+  });
+}
+
+docs {
+  Esperado: 200 cumpliendo las dos condiciones a la vez.
+
+  Es el caso que comprueba que el parámetro nuevo se SUMA a los que ya existían en
+  vez de reemplazarlos. Los when() se encadenan, así que cada filtro presente
+  agrega su condición y los ausentes no tocan la consulta.
+
+  Es la prueba más importante de MT-014: lo nuevo funciona Y lo viejo sigue
+  funcionando al mismo tiempo.
+}

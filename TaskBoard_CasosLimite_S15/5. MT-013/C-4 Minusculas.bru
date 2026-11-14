@@ -1,0 +1,37 @@
+meta {
+  name: C-4 · ?estado=completada
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{host}}/transacciones?estado=completada
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("C-4 responde 422", function () {
+    expect(res.getStatus()).to.equal(422);
+  });
+}
+
+docs {
+  C-4 es una DECISIÓN, no un error, y la guía lo dice así.
+
+  Mi esperado: 422. Rule::in distingue mayúsculas, así que "completada" no pasa.
+
+  Lo decidí antes de probar y lo sostengo después: el contrato publica tres valores
+  exactos y son los mismos que viajan en la respuesta. Si la API aceptara
+  variantes tendría que adivinar cuáles ("COMPLETADA", "Completadas", "completa"),
+  y cada variante aceptada es una forma distinta de escribir lo mismo que alguien
+  va a tener que mantener después.
+
+  Y el 422 no deja al cliente a ciegas: el mensaje nombra los tres valores
+  válidos, así que quien se equivocó de mayúscula lo arregla leyendo la respuesta.
+  Aceptarlo en silencio sería más cómodo hoy y más confuso siempre.
+}
