@@ -2,15 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\EstadoTransaccion;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CambiarEstadoRequest;
 use App\Http\Requests\GuardarTransaccionRequest;
 use App\Http\Resources\TransaccionResource;
 use App\Models\Transaccion;
+use App\Services\TransaccionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
@@ -43,6 +45,24 @@ use Illuminate\Validation\Rule;
  */
 class TransaccionApiController extends Controller
 {
+    /**
+     * Semana 18 · el servicio llega por el constructor.
+     *
+     * Esta línea es la inyección de dependencias del Laboratorio 3, y
+     * la propiedad promovida de PHP 8 la deja en una sola: declarar el
+     * tipo en el parámetro crea la propiedad y la asigna.
+     *
+     * Nadie escribe new TransaccionService() en ningún lado. El
+     * contenedor de Laravel ve el tipo, construye el objeto y lo pasa.
+     * Que nunca se escriba el new es lo que vuelve esto útil: el día
+     * que el servicio necesite una dependencia más, el controlador no
+     * se enterará. Y en una prueba se puede sustituir por otro objeto
+     * del mismo tipo sin tocar el controlador.
+     */
+    public function __construct(private TransaccionService $servicio)
+    {
+    }
+
     /**
      * La verificación de propiedad, en un solo lugar.
      *
@@ -122,9 +142,9 @@ class TransaccionApiController extends Controller
         // quien venía mandando estados mal escritos, y por eso va
         // anotado con ⚠ en CAMBIOS.md.
         $datos = $request->validate([
-            'estado' => ['nullable', Rule::in(['Iniciada', 'Completada', 'Fallida'])],
+            'estado' => ['nullable', Rule::enum(EstadoTransaccion::class)],
         ], [
-            'estado.in' => 'El estado debe ser Iniciada, Completada o Fallida.',
+            'estado.enum' => 'El estado debe ser Iniciada, Completada o Fallida.',
         ]);
 
         $estado = $datos['estado'] ?? null;
@@ -187,7 +207,7 @@ class TransaccionApiController extends Controller
         // tocar la base: un estado inventado, o una inyección, no está
         // en la lista y la petición muere en la validación.
         $datos = $request->validate([
-            'estado' => ['nullable', Rule::in(['Iniciada', 'Completada', 'Fallida'])],
+            'estado' => ['nullable', Rule::enum(EstadoTransaccion::class)],
             'desde' => ['nullable', 'date'],
             'hasta' => ['nullable', 'date', 'after_or_equal:desde'],
 
@@ -210,7 +230,7 @@ class TransaccionApiController extends Controller
             'monto_max' => ['nullable', 'numeric', 'min:0',
                 Rule::when($request->filled('monto_min'), ['gte:monto_min'])],
         ], [
-            'estado.in' => 'El estado debe ser Iniciada, Completada o Fallida.',
+            'estado.enum' => 'El estado debe ser Iniciada, Completada o Fallida.',
             'desde.date' => 'La fecha "desde" no tiene un formato válido.',
             'hasta.date' => 'La fecha "hasta" no tiene un formato válido.',
             'hasta.after_or_equal' => 'La fecha "hasta" no puede ser anterior a "desde".',
@@ -318,35 +338,24 @@ class TransaccionApiController extends Controller
      * contra quién comparar, y si Ana intenta crear una transacción
      * en un comercio de Carlos recibe 422 sin que yo haya tocado una
      * sola línea del Form Request.
+     *
+     * Semana 18 · el método quedó en tres líneas.
+     *
+     * Las veintiséis que tenía antes (la búsqueda del comercio, el if
+     * de la comisión, la transacción de base de datos, los dos INSERT,
+     * el refresh y el Log) están ahora en TransaccionService::registrar.
+     * Lo que queda es lo único que le toca a un controlador: recibir la
+     * petición ya validada, llamar a quien sabe hacer el trabajo y
+     * decidir cómo se devuelve el resultado.
+     *
+     * El servicio llega por el constructor, no con new. Así la clase
+     * declara de qué depende, y el contenedor de Laravel lo construye.
      */
     public function store(GuardarTransaccionRequest $request): JsonResponse
     {
-        $transaccion = DB::transaction(function () use ($request) {
-            $transaccion = Transaccion::create($request->only([
-                'comercio_id', 'cliente_nombre', 'monto',
-            ]));
-
-            // refresh() relee la fila recién insertada.
-            //
-            // Hace falta porque 'estado' no viaja en la petición: lo
-            // pone la base de datos con el default de la migración.
-            // create() devuelve el modelo con los campos que YO le
-            // pasé, y como ese no era uno de ellos, el objeto en
-            // memoria lo tiene en null aunque la fila ya diga
-            // 'Iniciada'. Sin esta línea la respuesta 201 sale con
-            // "estado": null y el cliente cree que la transacción
-            // nació sin estado.
-            $transaccion->refresh();
-
-            // El segundo INSERT, en otra tabla. create() desde la
-            // relación llena transaccion_id solo.
-            $transaccion->eventos()->create([
-                'tipo_evento' => 'creacion',
-                'detalle' => 'Transacción iniciada desde la API',
-            ]);
-
-            return $transaccion;
-        });
+        $transaccion = $this->servicio->registrar(
+            $request->user(), $request->validated()
+        );
 
         return (new TransaccionResource($transaccion))
             ->response()
@@ -395,14 +404,44 @@ class TransaccionApiController extends Controller
      * responde 422 y no 404. Para ver el 404 hay que mandar un
      * comercio_id propio y un id de transacción ajeno, que es lo que
      * hace la petición de la colección.
+     *
+     * Semana 18 · la llamada a autorizar() se fue con el resto. El
+     * servicio vuelve a buscar la transacción desde el usuario, así que
+     * la comprobación no desapareció: cambió de lugar y ahora es la
+     * misma para las tres escrituras.
      */
     public function update(
         GuardarTransaccionRequest $request,
         Transaccion $transaccion
     ): TransaccionResource {
-        $this->autorizar($transaccion);
+        $transaccion = $this->servicio->actualizar(
+            $request->user(), $transaccion, $request->validated()
+        );
 
-        $transaccion->update($request->validated());
+        return new TransaccionResource($transaccion);
+    }
+
+    /**
+     * PATCH /api/transacciones/{transaccion}/estado — cierra el cobro.
+     *
+     * Semana 18 · la dirección nueva del Laboratorio 4.
+     *
+     * No es un refactor de update(), es una capacidad que la API no
+     * tenía: desde la Semana 15 el PUT prohíbe 'estado' en el cuerpo, y
+     * mover el estado no se podía hacer por la API de ninguna manera.
+     * Meterlo en el PUT habría cambiado el contrato de una dirección
+     * que ya tiene clientes, así que entró por la suya.
+     *
+     * PATCH y no PUT porque no reemplaza la transacción, le cambia un
+     * campo. El segmento /estado dice cuál.
+     */
+    public function cambiarEstado(
+        CambiarEstadoRequest $request,
+        Transaccion $transaccion
+    ): TransaccionResource {
+        $transaccion = $this->servicio->cambiarEstado(
+            $request->user(), $transaccion, $request->validated()['estado']
+        );
 
         return new TransaccionResource($transaccion);
     }
@@ -433,12 +472,14 @@ class TransaccionApiController extends Controller
      * una pasarela de pagos real no borra un cobro cerrado, lo
      * anula. Queda escrito acá para que se vea que la diferencia
      * entre las dos puertas es conocida y no accidental.
+     *
+     * Semana 18 · el borrado también pasó al servicio. Son dos líneas
+     * sin lógica, y aun así se movieron, para que la comprobación de
+     * propiedad de las tres escrituras sea una sola.
      */
-    public function destroy(Transaccion $transaccion): Response
+    public function destroy(Request $request, Transaccion $transaccion): Response
     {
-        $this->autorizar($transaccion);
-
-        $transaccion->delete();
+        $this->servicio->eliminar($request->user(), $transaccion);
 
         return response()->noContent();
     }

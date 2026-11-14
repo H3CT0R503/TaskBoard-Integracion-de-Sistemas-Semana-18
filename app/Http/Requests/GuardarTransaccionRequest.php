@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\MetodoDePagoSoportado;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -90,6 +91,45 @@ class GuardarTransaccionRequest extends FormRequest
                     ->where('user_id', $this->user()->id),
             ],
             'cliente_nombre' => ['required', 'string', 'max:255'],
+
+            // Semana 18 · el método de pago, del que sale la comisión.
+            //
+            // La primera regla cambia según el verbo, y la diferencia
+            // importa más de lo que parece:
+            //
+            //   POST → 'required'. No contradice que el cliente pueda
+            //          omitirlo: prepareForValidation() lo rellena con
+            //          'tarjeta' antes de que corran las reglas, así
+            //          que al llegar aquí el campo siempre está. Hecho
+            //          de este modo, y no con 'nullable', el servicio
+            //          recibe un arreglo completo y no tiene que
+            //          inventar valores por omisión: el valor por
+            //          omisión vive en un solo lugar, y es este.
+            //
+            //   PUT  → 'sometimes'. Si el cliente no manda metodo, la
+            //          regla no corre, el campo no entra en
+            //          validated() y el update no lo toca. Sin esto, un
+            //          PUT de los que ya existen (que nunca mandó
+            //          metodo, porque hasta ayer no había columna) le
+            //          cambiaría el método a 'tarjeta' a una
+            //          transferencia, en silencio y dejándola con una
+            //          comisión que ya no le corresponde.
+            //
+            // La segunda regla ya no es un Rule::in con la lista de
+            // métodos escrita acá. Es MetodoDePagoSoportado, que le
+            // pregunta a la calculadora de comisiones si tiene una
+            // regla para ese método. El reto de la billetera mostró por
+            // qué: con la lista repetida, agregar un método de pago
+            // tocaba dos archivos, y olvidar este dejaba la API
+            // rechazando un método que el cálculo sí soportaba.
+            //
+            // app() y no new: la regla necesita la calculadora, y la
+            // calculadora la arma el contenedor con las reglas del
+            // AppServiceProvider.
+            'metodo' => [
+                $this->isMethod('POST') ? 'required' : 'sometimes',
+                app(MetodoDePagoSoportado::class),
+            ],
 
             // Las tres reglas del monto cubren los tres bordes que la
             // bitácora de casos límite encontró abiertos:
@@ -191,6 +231,29 @@ class GuardarTransaccionRequest extends FormRequest
             'cliente_nombre' => 'nombre del cliente',
             'monto' => 'monto de la transacción',
             'comercio_id' => 'comercio',
+            'metodo' => 'método de pago',
         ];
+    }
+
+    /**
+     * Semana 18 · el valor por omisión del método de pago.
+     *
+     * Corre antes de las reglas y rellena metodo cuando el cliente no
+     * lo manda. Es lo que deja que el cambio de esta semana sea seguro:
+     * el cliente web de la Semana 14 y la colección de Bruno nunca
+     * envían metodo, y tienen que seguir recibiendo 201 como ayer.
+     *
+     * Solo en POST. En PUT no se rellena nada, porque ahí "no lo mandó"
+     * significa "no lo quiere cambiar" y no "quiere el de siempre".
+     *
+     * has() y no filled(): si alguien manda metodo vacío a propósito,
+     * eso es un dato mal enviado y merece su 422, no un valor
+     * inventado por el servidor.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->isMethod('POST') && ! $this->has('metodo')) {
+            $this->merge(['metodo' => 'tarjeta']);
+        }
     }
 }

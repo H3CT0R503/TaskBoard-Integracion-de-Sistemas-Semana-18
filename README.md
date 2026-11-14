@@ -27,7 +27,60 @@
 
 ## 📌 Descripción del Proyecto
 
-Este repositorio contiene el trabajo de la **Semana 16** del proyecto **TaskBoard**, una plataforma de **Pasarela de Pagos** desarrollada en el framework **Laravel 12**. Abajo queda documentado también todo lo de la Semana 15, que es la base sobre la que se trabajó.
+Este repositorio contiene el trabajo de la **Semana 18** del proyecto **TaskBoard**, una plataforma de **Pasarela de Pagos** desarrollada en el framework **Laravel 12**. Abajo queda documentado también lo de las Semanas 15 y 16, que son la base sobre la que se trabajó.
+
+## 🏗️ Semana 18 — Guía N.° 20: refactorizar hacia una capa de servicios
+
+La consigna de la semana es la más incómoda de todas: **cambiar la estructura sin cambiar el comportamiento**. Nada de lo que un cliente de la API ve se mueve, y aun así casi todo el código de escritura cambia de lugar.
+
+El trabajo entero se hizo en la rama `refactor/servicios`, con ocho commits pequeños, y se midió con pruebas que tenían que pasar **antes y después** de cada paso. Sin eso, "no cambió nada" sería una opinión.
+
+### Lo que se movió
+
+| Antes | Ahora |
+|---|---|
+| `TransaccionApiController::store` calculaba la comisión, buscaba el comercio, abría la transacción de base de datos y escribía en dos tablas (23 líneas de cuerpo) | Llama al servicio y arma la respuesta (6 líneas) |
+| `update` y `destroy` comprobaban el dueño con un helper del propio controlador | `TransaccionService::actualizar` y `::eliminar`, con una sola comprobación de dueño para las tres escrituras |
+| Un `if` decidía la comisión según el método de pago | Una clase por método, en `app/Services/Comisiones/`, elegida por `CalculadoraComision` |
+| `'Iniciada'`, `'Completada'` y `'Fallida'` escritos a mano en nueve archivos | `app/Enums/EstadoTransaccion.php`, con cast en el modelo |
+
+`TransaccionService` **no recibe `Request` y no devuelve `response()`**: recibe el usuario y arreglos, devuelve modelos, y para las reglas de negocio que no se cumplen lanza una `ValidationException`, que Laravel convierte en el 422 de siempre. Por eso el mismo servicio lo usa el seeder, sin ninguna petición HTTP de por medio.
+
+### Lo que se agregó (y está en `CAMBIOS.md`)
+
+- **`metodo` y `comision`** en las transacciones. `metodo` acepta `tarjeta` (3.5 %), `transferencia` (1.50 fijo) y `billetera` (2 %), y es **opcional**: sin él, el cobro queda como `tarjeta` y la respuesta sigue siendo 201, igual que antes de esta semana.
+- **`PATCH /api/transacciones/{id}/estado`**, para cerrar un cobro. Es una dirección nueva y no un cambio en el `PUT`, que sigue prohibiendo `estado` en el cuerpo desde la Semana 15.
+
+### El principio abierto/cerrado, medido
+
+Agregar la **billetera** fue: una clase nueva (`ComisionBilletera`) y una línea en `AppServiceProvider`. `ComisionTarjeta`, `ComisionTransferencia` y `CalculadoraComision` no se tocaron.
+
+Pero también hubo que abrir el Form Request, porque ahí vivía un `Rule::in(['tarjeta', 'transferencia'])` con la lista repetida. Eso se cerró con `app/Rules/MetodoDePagoSoportado.php`, que le pregunta a la calculadora en vez de llevar su propia lista. El detalle importa porque los dos olvidos posibles fallan distinto: faltando la validación la API responde 422 (molesto y visible), faltando la regla responde **500** (un cobro que revienta en producción).
+
+---
+
+## 📡 API · Cierre de un cobro
+
+```http
+PATCH /api/transacciones/{id}/estado
+Authorization: Bearer <token>
+Content-Type: application/json
+Accept: application/json
+
+{ "estado": "Completada" }
+```
+
+| Caso | Respuesta |
+|---|---|
+| Una transacción `Iniciada` propia | **200** con la transacción actualizada, y un evento `cambio_estado` en la bitácora |
+| `estado` ausente o distinto de `Completada` / `Fallida` | **422** (`Iniciada` no es un destino: este endpoint cierra cobros, no los reabre) |
+| Una transacción que ya está cerrada | **422**, con el mensaje de la regla de negocio |
+| Una transacción de otra cuenta, o un id que no existe | **404**, con el mismo mensaje para los dos casos |
+| Sin token | **401** |
+
+La fila y su evento se escriben dentro de `DB::transaction()`: un estado movido sin su evento sería un cambio sin historia.
+
+---
 
 ## 🤖 Semana 16 · Jueves — Guía N.° 17: la IA como asistente
 
@@ -163,39 +216,73 @@ Son **dos guías y una sola entrega**:
 
 ## 📁 Estructura del Proyecto
 
+Lo de la **Semana 18**. Las dos carpetas nuevas dentro de `app/` se crearon a mano; Laravel las carga sola, porque el namespace sigue la ruta.
+
 ```text
 taskboard/
 ├── app/
-│   └── Http/
-│       ├── Controllers/Api/
-│       │   └── TransaccionApiController.php          # MODIFICADO  DB::transaction() + evento
-│       ├── Middleware/
-│       │   └── ValidarCuerpoJson.php                 # NUEVO  400 y 415 antes de validar
-│       └── Requests/
-│           └── GuardarTransaccionRequest.php         # MODIFICADO  max, decimal, prohibited
-├── bootstrap/
-│   └── app.php                                       # MODIFICADO  shouldRenderJsonWhen + QueryException
-├── routes/
-│   └── api.php                                       # MODIFICADO  ruta temporal del Lab 4 (ya borrada)
+│   ├── Enums/                                        # NUEVO  carpeta
+│   │   └── EstadoTransaccion.php                     # NUEVO  los tres estados, en un solo lugar
+│   ├── Services/                                     # NUEVO  carpeta
+│   │   ├── TransaccionService.php                    # NUEVO  registrar, actualizar, cambiarEstado, eliminar
+│   │   ├── CalculadoraComision.php                   # NUEVO  elige la regla y le pide el numero
+│   │   └── Comisiones/                               # NUEVO  carpeta
+│   │       ├── ReglaComision.php                     # NUEVO  la interfaz: aplica() y calcular()
+│   │       ├── ComisionTarjeta.php                   # NUEVO  3.5 %
+│   │       ├── ComisionTransferencia.php             # NUEVO  1.50 fijo
+│   │       └── ComisionBilletera.php                 # NUEVO  2 %, el reto
+│   ├── Rules/                                        # NUEVO  carpeta
+│   │   └── MetodoDePagoSoportado.php                 # NUEVO  la validacion le pregunta a la calculadora
+│   ├── Http/
+│   │   ├── Controllers/
+│   │   │   ├── Api/TransaccionApiController.php      # MODIFICADO  mas delgado + PATCH /estado
+│   │   │   └── TransaccionController.php             # MODIFICADO  el mapa de estados se fue al enum
+│   │   ├── Requests/
+│   │   │   ├── GuardarTransaccionRequest.php         # MODIFICADO  valida metodo
+│   │   │   └── CambiarEstadoRequest.php              # NUEVO  el cuerpo del cierre
+│   │   └── Resources/TransaccionResource.php         # MODIFICADO  metodo, comision y estado->value
+│   ├── Models/Transaccion.php                        # MODIFICADO  fillable + cast a enum
+│   └── Providers/AppServiceProvider.php              # MODIFICADO  el singleton de la calculadora
+├── bootstrap/app.php                                 # MODIFICADO  404 limpio para ModelNotFoundException
+├── database/
+│   ├── factories/ComercioFactory.php                 # NUEVO  pedida por el Laboratorio 2
+│   ├── migrations/..._add_metodo_y_comision_...php   # NUEVO  las dos columnas que faltaban
+│   └── seeders/ComercioSeeder.php                    # MODIFICADO  usa la calculadora
+├── resources/views/
+│   ├── comercios/show.blade.php                      # MODIFICADO  compara contra el enum
+│   └── components/badge-estado.blade.php             # MODIFICADO  compara contra el enum
+├── routes/api.php                                    # MODIFICADO  la ruta del cierre
 ├── tests/Feature/
-│   ├── CrearTransaccionTest.php                      # NUEVO  11 pruebas de regresión
-│   └── ExampleTest.php                               # MODIFICADO  estaba en rojo desde la Semana 12
-├── TaskBoard_CasosLimite_S15/                        # NUEVO  colección de Bruno, 17 casos
-├── TaskBoard-API-Semana15.postman_collection.json    # NUEVO  los mismos casos, en Postman
-├── Bitacora_Pruebas_Semana15_Interiano.xlsx          # NUEVO  bitácora y reportes de error
-└── RESPUESTAS_SEMANA15.md                            # NUEVO  respuestas y bitácoras
+│   ├── RegistrarTransaccionTest.php                  # NUEVO  7, la red de seguridad del Lab 2
+│   ├── ActualizarTransaccionTest.php                 # NUEVO  7, la red de PUT y DELETE
+│   ├── CambiarEstadoTransaccionTest.php              # NUEVO  6, escritas antes del codigo
+│   └── PanelWebTest.php                              # NUEVO  2, el agujero que dejo ver el enum
+├── CAMBIOS.md                                        # MODIFICADO  entrada del 2026-11-19
+└── RESPUESTAS_SEMANA18.md                            # NUEVO  los cinco laboratorios y los extras
+```
+
+Lo de las **Semanas 15 y 16**, que sigue en el repositorio:
+
+```text
+taskboard/
+├── app/Http/Middleware/ValidarCuerpoJson.php         # Semana 15  400 y 415 antes de validar
+├── tests/Feature/CrearTransaccionTest.php            # Semana 15  11 pruebas de regresion
+├── TaskBoard_CasosLimite_S15/                        # Semanas 15 a 18  coleccion de Bruno
+├── TaskBoard-API-Semana15.postman_collection.json    # Semana 15  los mismos casos, en Postman
+├── Bitacora_Pruebas_Semana15_Interiano.xlsx          # Semana 15  bitacora y reportes de error
+└── RESPUESTAS_SEMANA16.md                            # Semana 16  ficha de uso critico de IA
 ```
 
 ---
 
 ## ⚙️ Puesta en marcha
 
-El proyecto corre sobre **XAMPP** (Apache + MySQL) con la base de datos `taskboard_15`.
+El proyecto corre sobre **XAMPP** (Apache + MySQL) con la base de datos `taskboard_18`.
 
 ### 1. Crear la base de datos
 
 ```sql
-CREATE DATABASE taskboard_15 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE taskboard_18 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
 ### 2. Preparar el entorno
@@ -208,7 +295,7 @@ php artisan key:generate
 
 | Variable | Valor |
 |---|---|
-| `DB_DATABASE` | `taskboard_15` |
+| `DB_DATABASE` | `taskboard_18` |
 | `DB_USERNAME` | `root` |
 | `DB_PASSWORD` | *(vacío, usuario por defecto de XAMPP)* |
 
@@ -238,7 +325,7 @@ La API sigue teniendo las 12 rutas de la Semana 14 (una pública y once dentro d
 | **401** Unauthorized | No sé quién eres | Sin token, token vencido o revocado |
 | **404** Not Found | No existe para ti | Un id que no existe, o que es de otro usuario |
 | **415** Unsupported Media Type | No sé en qué formato me lo mandas | Cuerpo sin `Content-Type: application/json` *(nuevo)* |
-| **422** Unprocessable Content | Te entendí, pero los datos no sirven | Validación: monto, nombre, comercio, estado |
+| **422** Unprocessable Content | Te entendí, pero los datos no sirven | Validación: monto, nombre, comercio, estado, método de pago. Y desde la Semana 18, también las reglas de negocio del cierre, que las lanza el servicio con `ValidationException` |
 | **429** Too Many Requests | Demasiados intentos | 6 logins en un minuto |
 | **500** Internal Server Error | Fue culpa mía | Falla de base de datos. **Mensaje genérico**, detalle solo en el log *(nuevo)* |
 
@@ -286,18 +373,21 @@ php artisan test
 ```
 
 ```text
-PASS  Tests\Feature\CrearTransaccionTest
-✓ cl02 monto cero responde 422          ✓ e04 el mensaje de nombre largo esta traducido
-✓ cl01 monto minimo valido responde 201 ✓ e05 json mal formado responde 400
-✓ e01 monto sobre el maximo             ✓ cl14 cuerpo sin content type responde 415
-✓ e02 tres decimales                    ✓ crear registra el evento de creacion
-✓ la correccion de e02 no rompe los…    ✓ no se puede crear en el comercio de otro
-✓ e03 estado prohibido al crear
-
+PASS  Tests\Feature\CrearTransaccionTest           11 pruebas, Semana 15
+PASS  Tests\Feature\RegistrarTransaccionTest        7 pruebas, Laboratorio 2
+PASS  Tests\Feature\ActualizarTransaccionTest       7 pruebas, Laboratorio 4
+PASS  Tests\Feature\CambiarEstadoTransaccionTest    6 pruebas, Laboratorio 4
+PASS  Tests\Feature\PanelWebTest                    2 pruebas, el panel tras el enum
 PASS  Tests\Feature\ExampleTest
-✓ la raiz manda al login a quien no tiene sesion
+PASS  Tests\Unit\ExampleTest
 
-Tests:  13 passed (30 assertions)   Duration: 1.23s
+Tests:  35 passed (100 assertions)   Duration: 1.4s
+```
+
+Para correr solo las de la semana:
+
+```bash
+php artisan test --filter=RegistrarTransaccion
 ```
 
 No necesita servidor ni base de datos encendida: Laravel arma la petición por dentro y usa SQLite en memoria, que nace limpia en cada prueba.
@@ -366,7 +456,34 @@ Las dos veces el cliente recibió un 500. Sin la transacción quedó **un cobro 
 
 ## ✅ Verificación
 
-### Prueba de regresión
+### La Semana 18, medida con pruebas
+
+La suite completa queda en **35 pruebas**:
+
+```text
+Tests:    35 passed (100 assertions)
+```
+
+| Archivo | Pruebas | Qué fija |
+|---|---|---|
+| `CrearTransaccionTest.php` | 11 | Los casos límite de la Semana 15. Son la regresión de fondo: pasaban antes del refactor y siguen pasando |
+| `RegistrarTransaccionTest.php` | 7 | La red de seguridad del Laboratorio 2: comisión por método, el valor por omisión, 422 y 401 |
+| `ActualizarTransaccionTest.php` | 7 | PUT y DELETE: 6 que pasaban antes y después, más la regla nueva de recalcular la comisión |
+| `CambiarEstadoTransaccionTest.php` | 6 | El `PATCH /estado`, escritas **antes** del código |
+| `PanelWebTest.php` | 2 | El panel web después del enum |
+| `ExampleTest.php` (Feature y Unit) | 2 | De semanas anteriores |
+
+Tres momentos de la semana en que el rojo dijo algo:
+
+| Momento | Qué salió |
+|---|---|
+| Las pruebas del Laboratorio 2, corridas antes de mover código | Una esperaba `60.0` donde JSON devuelve `60`, y otra esperaba 404 donde este proyecto responde 422 porque el dueño se comprueba en el Form Request. Las dos eran errores **de la prueba**, no del código |
+| El experimento del Laboratorio 5: inyectar `CalculadoraComision` sin enlazarla | `BindingResolutionException: Unresolvable dependency resolving [Parameter #0 [ <required> array $reglas ]]`. El contenedor resuelve tipos de clase, y de un `array` no hay nada que deducir |
+| Volver a poner una comparación contra `'Iniciada'` en una vista, con el cast a enum activo | La página responde 200 y se queda sin los botones de mover estado. Comparar un enum con una cadena no es un error de PHP: es simplemente falso |
+
+---
+
+### Prueba de regresión (Semana 15)
 
 | | Pasan | Fallan |
 |---|---|---|
@@ -404,3 +521,4 @@ Las otras diez siguen en verde. Eso es lo que hace útil a una prueba de regresi
 - **Semana 14** — autenticación de API con Laravel Sanctum ([RESPUESTAS_SEMANA14.md](RESPUESTAS_SEMANA14.md))
 - **Semana 15** — casos límite, manejo de errores e integridad ([RESPUESTAS_SEMANA15.md](RESPUESTAS_SEMANA15.md))
 - **Semana 16** — uso crítico de IA y revisión de código ([RESPUESTAS_SEMANA16.md](RESPUESTAS_SEMANA16.md))
+- **Semana 18** — arquitectura, capa de servicios y SOLID ([RESPUESTAS_SEMANA18.md](RESPUESTAS_SEMANA18.md))

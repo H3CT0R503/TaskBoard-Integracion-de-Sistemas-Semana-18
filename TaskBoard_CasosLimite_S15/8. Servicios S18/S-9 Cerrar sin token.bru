@@ -1,0 +1,41 @@
+meta {
+  name: S-9 · Cerrar sin token
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{host}}/transacciones/{{s18Transferencia}}/estado
+  body: json
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+body:json {
+  {
+    "estado": "Completada"
+  }
+}
+
+tests {
+  test("S-9 responde 401", function () {
+    expect(res.getStatus()).to.equal(401);
+  });
+}
+
+docs {
+Semana 18 · la ruta nueva esta DENTRO del grupo auth:sanctum.
+
+  Es la misma revision del problema 1 de la Semana 16, cuando la IA dejo el
+  filtro suelto al final del archivo, fuera del grupo. Una ruta nueva que
+  escribe datos y queda afuera es una fuga, asi que se comprueba en vez de
+  suponerse.
+
+  El cuerpo de esta peticion es perfecto y aun asi no entra: el middleware corta
+  antes de que el Form Request valide nada.
+
+  Esperado: 401.
+}

@@ -180,6 +180,32 @@ Route::middleware('auth:sanctum')->group(function () {
     */
     Route::get('/transacciones/filtrar', [TransaccionApiController::class, 'filtrar']);
 
+    /*
+    |----------------------------------------------------------------
+    | El cierre del cobro — Semana 18
+    |----------------------------------------------------------------
+    | PATCH /transacciones/{id}/estado mueve una transacción de
+    | Iniciada a Completada o Fallida. Es la dirección nueva del
+    | Laboratorio 4.
+    |
+    | Queda arriba del apiResource por costumbre, no por necesidad: acá
+    | el orden no cambia nada, porque la URL lleva un segmento más
+    | (/estado) que ninguna ruta del apiResource declara, así que no
+    | hay con quién competir. El filtro de arriba sí competía, porque
+    | /transacciones/filtrar tiene exactamente la misma forma que
+    | /transacciones/{transaccion}.
+    |
+    | PATCH y no PUT: no se reemplaza la transacción entera, se cambia
+    | un campo, y el segmento final dice cuál. En vez de empezar a
+    | aceptar 'estado' dentro del PUT que ya existe, que habría
+    | cambiado un contrato que tiene clientes, el cambio de estado
+    | tiene su propia puerta y su propio Form Request.
+    */
+    Route::patch(
+        '/transacciones/{transaccion}/estado',
+        [TransaccionApiController::class, 'cambiarEstado']
+    );
+
     Route::apiResource('transacciones', TransaccionApiController::class)
         ->parameters(['transacciones' => 'transaccion']);
 });

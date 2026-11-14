@@ -42,7 +42,7 @@
                      reintenta, y una Completada ya no se mueve. El
                      controlador vuelve a revisar lo mismo, porque
                      esconder un botón no bloquea la petición --}}
-                @if ($transaccion->estado === 'Iniciada')
+                @if ($transaccion->estado === \App\Enums\EstadoTransaccion::Iniciada)
                     <form action="{{ route('transacciones.mover', [$transaccion, 'Completada']) }}"
                           method="POST">
                         @csrf
@@ -56,7 +56,7 @@
                         @method('PATCH')
                         <button type="submit">Marcar Fallida</button>
                     </form>
-                @elseif ($transaccion->estado === 'Fallida')
+                @elseif ($transaccion->estado === \App\Enums\EstadoTransaccion::Fallida)
                     <form action="{{ route('transacciones.mover', [$transaccion, 'Iniciada']) }}"
                           method="POST">
                         @csrf

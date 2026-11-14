@@ -2,7 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Enums\EstadoTransaccion;
 use App\Models\User;
+use App\Services\CalculadoraComision;
 use Illuminate\Database\Seeder;
 
 class ComercioSeeder extends Seeder
@@ -49,16 +51,31 @@ class ComercioSeeder extends Seeder
 
         // createMany() desde la relación llena el comercio_id solo,
         // sin que yo tenga que repetir el id en cada arreglo.
+        // Semana 18 · desde esta semana cada transacción sembrada lleva
+        // su método de pago y su comisión, para que los datos de prueba
+        // digan lo mismo que diría la API si se hubieran creado por
+        // ella.
+        //
+        // La comisión no va escrita a mano: la calcula la misma
+        // calculadora que usa el servicio, con las mismas reglas. Así
+        // los datos sembrados no pueden quedar en desacuerdo con el
+        // código, y de paso queda demostrado que el cálculo no
+        // necesita una petición HTTP para funcionar: acá no hay
+        // Request en ninguna parte.
         $cafeAmanecer->transacciones()->createMany([
             [
                 'monto' => 45.00,
+                'metodo' => 'tarjeta',
+                'comision' => $this->comision('tarjeta', 45.00),
                 'cliente_nombre' => 'María López',
-                'estado' => 'Completada',
+                'estado' => EstadoTransaccion::Completada,
             ],
             [
                 'monto' => 12.50,
+                'metodo' => 'transferencia',
+                'comision' => $this->comision('transferencia', 12.50),
                 'cliente_nombre' => 'Juan Pérez',
-                'estado' => 'Iniciada',
+                'estado' => EstadoTransaccion::Iniciada,
             ],
         ]);
 
@@ -70,8 +87,10 @@ class ComercioSeeder extends Seeder
 
         $pupuseria->transacciones()->create([
             'monto' => 8.00,
+            'metodo' => 'tarjeta',
+            'comision' => $this->comision('tarjeta', 8.00),
             'cliente_nombre' => 'Carlos Ramírez',
-            'estado' => 'Fallida',
+            'estado' => EstadoTransaccion::Fallida,
         ]);
 
         $carlos->comercios()->create([
@@ -88,8 +107,23 @@ class ComercioSeeder extends Seeder
 
         $libreria->transacciones()->create([
             'monto' => 23.75,
+            'metodo' => 'transferencia',
+            'comision' => $this->comision('transferencia', 23.75),
             'cliente_nombre' => 'Sofía Martínez',
-            'estado' => 'Iniciada',
+            'estado' => EstadoTransaccion::Iniciada,
         ]);
+    }
+
+    /**
+     * La comisión, pedida a la misma calculadora que usa la API.
+     *
+     * app() en lugar de inyectarla en el constructor porque un seeder
+     * no se construye por el contenedor con parámetros propios, y
+     * porque acá no hay nada que sustituir en una prueba: el seeder ES
+     * el dato de prueba.
+     */
+    private function comision(string $metodo, float $monto): float
+    {
+        return app(CalculadoraComision::class)->calcular($metodo, $monto);
     }
 }

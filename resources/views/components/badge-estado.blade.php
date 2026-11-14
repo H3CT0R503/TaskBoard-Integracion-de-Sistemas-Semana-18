@@ -4,10 +4,10 @@
      íconos se edita solo este archivo y no cada vista --}}
 @props(['estado'])
 
-@if ($estado === 'Completada')
+@if ($estado === \App\Enums\EstadoTransaccion::Completada)
     <span class="badge verde">✔ Completada</span>
-@elseif ($estado === 'Fallida')
+@elseif ($estado === \App\Enums\EstadoTransaccion::Fallida)
     <span class="badge rojo">✗ Fallida</span>
 @else
-    <span class="badge amarillo">⏳ {{ $estado }}</span>
+    <span class="badge amarillo">⏳ {{ $estado->value }}</span>
 @endif

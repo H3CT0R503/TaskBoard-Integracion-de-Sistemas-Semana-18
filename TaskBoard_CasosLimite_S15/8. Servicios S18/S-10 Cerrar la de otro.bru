@@ -1,0 +1,52 @@
+meta {
+  name: S-10 · Cerrar la de otro usuario
+  type: http
+  seq: 10
+}
+
+patch {
+  url: {{host}}/transacciones/4/estado
+  body: json
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+body:json {
+  {
+    "estado": "Completada"
+  }
+}
+
+tests {
+  test("S-10 responde 404", function () {
+    expect(res.getStatus()).to.equal(404);
+  });
+
+  test("S-10 no cuenta de quien es", function () {
+    expect(res.getBody().message).to.equal("No encontramos ese recurso en tu cuenta.");
+  });
+}
+
+docs {
+Semana 18 · el aislamiento, con el token de Ana y una transaccion de Carlos.
+
+  La 4 es de la Libreria La Pagina, que es de Carlos. El servicio la busca desde
+  el usuario del token, con $usuario->transacciones()->...->firstOrFail(), asi
+  que para Ana simplemente no existe.
+
+  El mensaje importa tanto como el codigo: es el MISMO para un id inexistente y
+  para uno ajeno. Un 403, o un texto distinto, le confirmaria a Ana que esa fila
+  existe en la cuenta de alguien mas.
+
+  Un detalle de la semana: este 404 ya no lo lanza abort_unless() sino el
+  firstOrFail() del servicio, o sea una ModelNotFoundException de Eloquent y no
+  una NotFoundHttpException. Por eso bootstrap/app.php tiene ahora un render
+  para las dos. Sin el nuevo, esta respuesta traeria el mensaje por omision, que
+  nombra la clase del modelo y su namespace, y quedarian dos textos distintos
+  para el mismo 404.
+
+  Esperado: 404 con el mensaje generico.
+}

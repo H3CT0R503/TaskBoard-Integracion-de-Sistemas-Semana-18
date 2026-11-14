@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EstadoTransaccion;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,8 @@ class Transaccion extends Model
     protected $fillable = [
         'comercio_id',
         'monto',
+        'metodo',
+        'comision',
         'cliente_nombre',
         'estado',
     ];
@@ -34,9 +37,25 @@ class Transaccion extends Model
      * El monto vuelve de la base de datos como cadena. El cast lo
      * entrega siempre con dos decimales, así los cálculos y la vista
      * no dependen de cómo lo devolvió el driver.
+     *
+     * La comisión lleva el mismo cast y por el mismo motivo, con una
+     * diferencia: puede venir en null, y el cast respeta el null en
+     * lugar de convertirlo en un "0.00" que no es cierto.
      */
     protected $casts = [
         'monto' => 'decimal:2',
+        'comision' => 'decimal:2',
+
+        // Semana 18 · el estado deja de ser una cadena.
+        //
+        // Con este cast, $transaccion->estado devuelve un
+        // EstadoTransaccion y no el texto 'Iniciada'. Al guardar acepta
+        // las dos cosas, el caso del enum o su valor, y al leer siempre
+        // entrega el caso. El efecto en cadena es el que importa: una
+        // comparación contra 'Iniciada' escrita a mano deja de ser
+        // verdadera, así que el cast no solo convierte el dato, obliga
+        // a encontrar los lugares donde el texto estaba suelto.
+        'estado' => EstadoTransaccion::class,
     ];
 
     /**

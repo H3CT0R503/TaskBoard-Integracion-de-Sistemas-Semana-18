@@ -1,0 +1,50 @@
+meta {
+  name: S-5 · Metodo inventado
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{host}}/transacciones
+  body: json
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+body:json {
+  {
+    "comercio_id": 1,
+    "cliente_nombre": "Prueba S18 efectivo",
+    "monto": 100,
+    "metodo": "efectivo"
+  }
+}
+
+tests {
+  test("S-5 responde 422", function () {
+    expect(res.getStatus()).to.equal(422);
+  });
+
+  test("S-5 el error esta en metodo", function () {
+    expect(res.getBody().errors).to.have.property("metodo");
+  });
+}
+
+docs {
+Semana 18 · un metodo de pago para el que no hay regla.
+
+  La validacion no lleva su propia lista de metodos: la regla
+  MetodoDePagoSoportado le pregunta a la calculadora si tiene una regla para
+  este. Por eso aqui responde 422.
+
+  Y el 500 es el escenario que eso evita. Si la validacion aceptara "efectivo"
+  y la calculadora no tuviera regla, el calculo lanzaria
+  InvalidArgumentException y el cobro reventaria con un 500. Mientras habia dos
+  listas, una en el Form Request y otra en el contenedor, podian quedar en
+  desacuerdo; ahora hay una sola.
+
+  Esperado: 422 con el error en metodo.
+}

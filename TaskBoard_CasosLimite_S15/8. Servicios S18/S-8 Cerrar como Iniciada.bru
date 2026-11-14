@@ -1,0 +1,44 @@
+meta {
+  name: S-8 · Cerrar como Iniciada
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{host}}/transacciones/{{s18Transferencia}}/estado
+  body: json
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+body:json {
+  {
+    "estado": "Iniciada"
+  }
+}
+
+tests {
+  test("S-8 responde 422", function () {
+    expect(res.getStatus()).to.equal(422);
+  });
+
+  test("S-8 el error esta en estado", function () {
+    expect(res.getBody().errors).to.have.property("estado");
+  });
+}
+
+docs {
+Semana 18 · 'Iniciada' no es un destino.
+
+  Este endpoint cierra cobros, no los reabre. Y este 422 viene del Form Request
+  y no del servicio, al contrario de S-7: que estado sea uno de los dos valores
+  de cierre se contesta leyendo el cuerpo, sin consultar nada.
+
+  La lista de esos dos valores tampoco esta escrita a mano: sale del enum, con
+  Rule::enum(EstadoTransaccion::class)->only(EstadoTransaccion::deCierre()).
+
+  Esperado: 422 con el error en estado.
+}

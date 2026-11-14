@@ -1,0 +1,59 @@
+meta {
+  name: S-1 · Cobro con tarjeta
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{host}}/transacciones
+  body: json
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+body:json {
+  {
+    "comercio_id": 1,
+    "cliente_nombre": "Prueba S18 tarjeta",
+    "monto": 100,
+    "metodo": "tarjeta"
+  }
+}
+
+script:post-response {
+  bru.setVar("s18Tarjeta", res.getBody().data.id);
+}
+
+tests {
+  test("S-1 responde 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("S-1 guarda el metodo tarjeta", function () {
+    expect(res.getBody().data.metodo).to.equal("tarjeta");
+  });
+
+  test("S-1 cobra el 3.5 por ciento de comision", function () {
+    expect(res.getBody().data.comision).to.equal(3.5);
+  });
+
+  test("S-1 nace Iniciada", function () {
+    expect(res.getBody().data.estado).to.equal("Iniciada");
+  });
+}
+
+docs {
+Semana 18 · la comision de tarjeta, que es un porcentaje.
+
+  100 por 3.5 % da 3.50. El numero ya no sale de un if dentro del controlador
+  sino de la clase ComisionTarjeta, elegida por CalculadoraComision. Para quien
+  pide, eso es invisible, y es exactamente el punto del refactor: la respuesta
+  es la misma que daria el codigo viejo.
+
+  Guarda el id en {{s18Tarjeta}}, que usan S-6, S-7, S-11 y S-12.
+
+  Esperado: 201, metodo tarjeta, comision 3.5, estado Iniciada.
+}

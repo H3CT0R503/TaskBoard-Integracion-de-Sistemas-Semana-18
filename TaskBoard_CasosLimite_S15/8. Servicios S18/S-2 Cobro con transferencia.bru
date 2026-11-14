@@ -1,0 +1,50 @@
+meta {
+  name: S-2 · Cobro con transferencia
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{host}}/transacciones
+  body: json
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+body:json {
+  {
+    "comercio_id": 1,
+    "cliente_nombre": "Prueba S18 transferencia",
+    "monto": 100,
+    "metodo": "transferencia"
+  }
+}
+
+script:post-response {
+  bru.setVar("s18Transferencia", res.getBody().data.id);
+}
+
+tests {
+  test("S-2 responde 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("S-2 cobra 1.50 fijo", function () {
+    expect(res.getBody().data.comision).to.equal(1.5);
+  });
+}
+
+docs {
+Semana 18 · la comision fija, que NO depende del monto.
+
+  Es la regla que explica por que la interfaz ReglaComision recibe el monto
+  aunque ComisionTransferencia no lo use: el contrato tiene que servir para las
+  dos formas de cobrar, la que es un porcentaje y la que es un numero fijo. Una
+  interfaz hecha a la medida de la tarjeta, con un porcentaje() en vez de un
+  calcular(), no habria podido representar esta.
+
+  Esperado: 201 con comision 1.5.
+}

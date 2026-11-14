@@ -1,0 +1,47 @@
+meta {
+  name: S-7 · Cerrar lo que ya esta cerrado
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{host}}/transacciones/{{s18Tarjeta}}/estado
+  body: json
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+body:json {
+  {
+    "estado": "Fallida"
+  }
+}
+
+tests {
+  test("S-7 responde 422", function () {
+    expect(res.getStatus()).to.equal(422);
+  });
+
+  test("S-7 el error esta en estado", function () {
+    expect(res.getBody().errors).to.have.property("estado");
+  });
+}
+
+docs {
+Semana 18 · la regla de negocio del dia, en su 422.
+
+  Es la misma peticion de S-6, repetida. Ahora la transaccion esta Completada, y
+  la regla dice que solo se cierra lo que esta Iniciada.
+
+  Lo que vale mirar es de donde sale este 422: no lo puso ninguna regla de
+  validacion. Lo lanza el servicio con ValidationException::withMessages, porque
+  la regla depende del estado actual de la fila y eso no se puede saber mirando
+  el cuerpo de la peticion. Llega con el mismo formato que cualquier otro error
+  de validacion, asi que para el cliente es igual, y el servicio nunca tuvo que
+  saber que es un 422.
+
+  Esperado: 422 con el error en estado.
+}

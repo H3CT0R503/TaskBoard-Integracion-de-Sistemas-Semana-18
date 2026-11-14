@@ -1,0 +1,48 @@
+meta {
+  name: S-6 · Cerrar el cobro de S-1
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{host}}/transacciones/{{s18Tarjeta}}/estado
+  body: json
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+body:json {
+  {
+    "estado": "Completada"
+  }
+}
+
+tests {
+  test("S-6 responde 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("S-6 deja la transaccion Completada", function () {
+    expect(res.getBody().data.estado).to.equal("Completada");
+  });
+}
+
+docs {
+Semana 18 · la direccion nueva del Laboratorio 4.
+
+  PATCH /transacciones/{id}/estado. Es una puerta propia y no un cambio en el
+  PUT: el PUT sigue prohibiendo 'estado' en el cuerpo desde la Semana 15, y
+  empezar a aceptarlo ahi habria cambiado un contrato que ya tiene clientes.
+
+  PATCH y no PUT porque no se reemplaza la transaccion entera, se cambia un
+  campo, y el ultimo segmento de la URL dice cual.
+
+  Del lado del servidor, la fila y su evento 'cambio_estado' se escriben dentro
+  de DB::transaction(): un estado movido sin su evento es un cambio sin
+  historia.
+
+  Esperado: 200 con estado Completada.
+}
