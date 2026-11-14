@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 /**
@@ -321,10 +322,27 @@ class TransaccionApiController extends Controller
      */
     public function store(GuardarTransaccionRequest $request): JsonResponse
     {
-        $transaccion = DB::transaction(function () use ($request) {
-            $transaccion = Transaccion::create($request->only([
-                'comercio_id', 'cliente_nombre', 'monto',
-            ]));
+        $datos = $request->validated();
+
+        // Semana 18 · la comisión del cobro, calculada aquí mismo.
+        //
+        // Queda escrito así a propósito, porque es el punto de partida
+        // del día: un controlador que, además de coordinar, decide
+        // cuánto se cobra de comisión. El Laboratorio 3 lo saca de
+        // acá y el Laboratorio 5 reemplaza el if por clases.
+        $comercio = $request->user()->comercios()->findOrFail($datos['comercio_id']);
+
+        $comision = $datos['metodo'] === 'tarjeta'
+            ? round($datos['monto'] * 0.035, 2)
+            : 1.50;
+
+        $transaccion = DB::transaction(function () use ($comercio, $datos, $comision) {
+            $transaccion = $comercio->transacciones()->create([
+                'cliente_nombre' => $datos['cliente_nombre'],
+                'monto' => $datos['monto'],
+                'metodo' => $datos['metodo'],
+                'comision' => $comision,
+            ]);
 
             // refresh() relee la fila recién insertada.
             //
@@ -347,6 +365,8 @@ class TransaccionApiController extends Controller
 
             return $transaccion;
         });
+
+        Log::info("Transacción {$transaccion->id} registrada");
 
         return (new TransaccionResource($transaccion))
             ->response()

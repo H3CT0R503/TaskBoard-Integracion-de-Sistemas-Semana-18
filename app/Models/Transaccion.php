@@ -26,6 +26,8 @@ class Transaccion extends Model
     protected $fillable = [
         'comercio_id',
         'monto',
+        'metodo',
+        'comision',
         'cliente_nombre',
         'estado',
     ];
@@ -34,9 +36,14 @@ class Transaccion extends Model
      * El monto vuelve de la base de datos como cadena. El cast lo
      * entrega siempre con dos decimales, así los cálculos y la vista
      * no dependen de cómo lo devolvió el driver.
+     *
+     * La comisión lleva el mismo cast y por el mismo motivo, con una
+     * diferencia: puede venir en null, y el cast respeta el null en
+     * lugar de convertirlo en un "0.00" que no es cierto.
      */
     protected $casts = [
         'monto' => 'decimal:2',
+        'comision' => 'decimal:2',
     ];
 
     /**

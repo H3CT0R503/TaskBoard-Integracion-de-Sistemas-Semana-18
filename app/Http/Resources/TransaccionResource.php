@@ -51,6 +51,19 @@ class TransaccionResource extends JsonResource
             // quien muestra el dato, no de quien lo entrega.
             'monto' => (float) $this->monto,
 
+            // Semana 18 · el método de pago y la comisión que le
+            // corresponde. Son campos nuevos, y agregar campos a una
+            // respuesta es un cambio seguro: quien ya consumía este
+            // JSON lee las llaves que le interesan y las demás las
+            // ignora. Lo que rompería es quitar o renombrar una.
+            //
+            // La comisión puede ser null, y sale null. Las filas
+            // sembradas antes de esta semana no tienen comisión, y
+            // convertirlas a 0.0 acá sería decirle al cliente que se
+            // cobró cero, que no es lo mismo que no saberlo.
+            'metodo' => $this->metodo,
+            'comision' => $this->comision === null ? null : (float) $this->comision,
+
             'estado' => $this->estado,
 
             // ISO 8601 es el formato que cualquier lenguaje sabe leer
