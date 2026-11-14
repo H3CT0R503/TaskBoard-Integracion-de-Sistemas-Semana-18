@@ -6,12 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\GuardarTransaccionRequest;
 use App\Http\Resources\TransaccionResource;
 use App\Models\Transaccion;
+use App\Services\TransaccionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 /**
@@ -44,6 +43,24 @@ use Illuminate\Validation\Rule;
  */
 class TransaccionApiController extends Controller
 {
+    /**
+     * Semana 18 · el servicio llega por el constructor.
+     *
+     * Esta línea es la inyección de dependencias del Laboratorio 3, y
+     * la propiedad promovida de PHP 8 la deja en una sola: declarar el
+     * tipo en el parámetro crea la propiedad y la asigna.
+     *
+     * Nadie escribe new TransaccionService() en ningún lado. El
+     * contenedor de Laravel ve el tipo, construye el objeto y lo pasa.
+     * Que nunca se escriba el new es lo que vuelve esto útil: el día
+     * que el servicio necesite una dependencia más, el controlador no
+     * se enterará. Y en una prueba se puede sustituir por otro objeto
+     * del mismo tipo sin tocar el controlador.
+     */
+    public function __construct(private TransaccionService $servicio)
+    {
+    }
+
     /**
      * La verificación de propiedad, en un solo lugar.
      *
@@ -319,54 +336,25 @@ class TransaccionApiController extends Controller
      * contra quién comparar, y si Ana intenta crear una transacción
      * en un comercio de Carlos recibe 422 sin que yo haya tocado una
      * sola línea del Form Request.
+     *
+     * Semana 18 · el método quedó en tres líneas.
+     *
+     * Las veintiséis que tenía antes (la búsqueda del comercio, el if
+     * de la comisión, la transacción de base de datos, los dos INSERT,
+     * el refresh y el Log) están ahora en TransaccionService::registrar.
+     * Lo que queda es lo único que le toca a un controlador: recibir la
+     * petición ya validada, llamar a quien sabe hacer el trabajo y
+     * decidir cómo se devuelve el resultado.
+     *
+     * El servicio llega por el constructor, no con new. Así la clase
+     * declara de qué depende, y el contenedor de Laravel lo construye.
      */
     public function store(GuardarTransaccionRequest $request): JsonResponse
     {
-        $datos = $request->validated();
-
-        // Semana 18 · la comisión del cobro, calculada aquí mismo.
-        //
-        // Queda escrito así a propósito, porque es el punto de partida
-        // del día: un controlador que, además de coordinar, decide
-        // cuánto se cobra de comisión. El Laboratorio 3 lo saca de
-        // acá y el Laboratorio 5 reemplaza el if por clases.
-        $comercio = $request->user()->comercios()->findOrFail($datos['comercio_id']);
-
-        $comision = $datos['metodo'] === 'tarjeta'
-            ? round($datos['monto'] * 0.035, 2)
-            : 1.50;
-
-        $transaccion = DB::transaction(function () use ($comercio, $datos, $comision) {
-            $transaccion = $comercio->transacciones()->create([
-                'cliente_nombre' => $datos['cliente_nombre'],
-                'monto' => $datos['monto'],
-                'metodo' => $datos['metodo'],
-                'comision' => $comision,
-            ]);
-
-            // refresh() relee la fila recién insertada.
-            //
-            // Hace falta porque 'estado' no viaja en la petición: lo
-            // pone la base de datos con el default de la migración.
-            // create() devuelve el modelo con los campos que YO le
-            // pasé, y como ese no era uno de ellos, el objeto en
-            // memoria lo tiene en null aunque la fila ya diga
-            // 'Iniciada'. Sin esta línea la respuesta 201 sale con
-            // "estado": null y el cliente cree que la transacción
-            // nació sin estado.
-            $transaccion->refresh();
-
-            // El segundo INSERT, en otra tabla. create() desde la
-            // relación llena transaccion_id solo.
-            $transaccion->eventos()->create([
-                'tipo_evento' => 'creacion',
-                'detalle' => 'Transacción iniciada desde la API',
-            ]);
-
-            return $transaccion;
-        });
-
-        Log::info("Transacción {$transaccion->id} registrada");
+        $transaccion = $this->servicio->registrar(
+            $request->user(),
+            $request->validated()
+        );
 
         return (new TransaccionResource($transaccion))
             ->response()
