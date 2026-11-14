@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\ValidarCuerpoJson;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -109,6 +110,38 @@ return Application::configure(basePath: dirname(__DIR__))
         | cuenta de alguien más.
         */
         $exceptions->render(function (NotFoundHttpException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'message' => 'No encontramos ese recurso en tu cuenta.',
+                ], 404);
+            }
+        });
+
+        /*
+        |------------------------------------------------------------
+        | El otro 404, el que lanza Eloquent — Semana 18
+        |------------------------------------------------------------
+        | Desde esta semana la comprobación de propiedad no la hace
+        | abort_unless() en el controlador sino firstOrFail() dentro
+        | del servicio, que busca la transacción desde su dueño. Eso
+        | cambió la excepción: ya no es una NotFoundHttpException, es
+        | una ModelNotFoundException de Eloquent.
+        |
+        | Laravel igual responde 404, así que el código de estado
+        | nunca estuvo en duda. Lo que cambiaba era el cuerpo: el
+        | manejador por omisión contesta con el mensaje de la
+        | excepción, que dice "No query results for model
+        | [App\Models\Transaccion] 7". Eso nombra la clase del modelo
+        | y su namespace, que es información del servidor, y además
+        | deja dos mensajes distintos para el mismo 404 según por
+        | dónde entró la petición.
+        |
+        | Con este render los dos vuelven a contestar lo mismo, que es
+        | la decisión de la Semana 14: un solo mensaje para el id que
+        | no existe y para el ajeno, porque distinguirlos confirmaría
+        | que esa fila existe en la cuenta de alguien más.
+        */
+        $exceptions->render(function (ModelNotFoundException $e, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json([
                     'message' => 'No encontramos ese recurso en tu cuenta.',

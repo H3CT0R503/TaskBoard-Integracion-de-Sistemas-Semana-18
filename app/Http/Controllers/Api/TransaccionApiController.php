@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CambiarEstadoRequest;
 use App\Http\Requests\GuardarTransaccionRequest;
 use App\Http\Resources\TransaccionResource;
 use App\Models\Transaccion;
@@ -403,16 +404,50 @@ class TransaccionApiController extends Controller
      * responde 422 y no 404. Para ver el 404 hay que mandar un
      * comercio_id propio y un id de transacción ajeno, que es lo que
      * hace la petición de la colección.
+     *
+     * Semana 18 · la llamada a autorizar() se fue con el resto. El
+     * servicio vuelve a buscar la transacción desde el usuario, así que
+     * la comprobación no desapareció: cambió de lugar y ahora es la
+     * misma para las tres escrituras.
      */
     public function update(
         GuardarTransaccionRequest $request,
         Transaccion $transaccion
     ): TransaccionResource {
-        $this->autorizar($transaccion);
+        return new TransaccionResource(
+            $this->servicio->actualizar(
+                $request->user(),
+                $transaccion,
+                $request->validated()
+            )
+        );
+    }
 
-        $transaccion->update($request->validated());
-
-        return new TransaccionResource($transaccion);
+    /**
+     * PATCH /api/transacciones/{transaccion}/estado — cierra el cobro.
+     *
+     * Semana 18 · la dirección nueva del Laboratorio 4.
+     *
+     * No es un refactor de update(), es una capacidad que la API no
+     * tenía: desde la Semana 15 el PUT prohíbe 'estado' en el cuerpo, y
+     * mover el estado no se podía hacer por la API de ninguna manera.
+     * Meterlo en el PUT habría cambiado el contrato de una dirección
+     * que ya tiene clientes, así que entró por la suya.
+     *
+     * PATCH y no PUT porque no reemplaza la transacción, le cambia un
+     * campo. El segmento /estado dice cuál.
+     */
+    public function cambiarEstado(
+        CambiarEstadoRequest $request,
+        Transaccion $transaccion
+    ): TransaccionResource {
+        return new TransaccionResource(
+            $this->servicio->cambiarEstado(
+                $request->user(),
+                $transaccion,
+                $request->validated()['estado']
+            )
+        );
     }
 
     /**
@@ -441,12 +476,14 @@ class TransaccionApiController extends Controller
      * una pasarela de pagos real no borra un cobro cerrado, lo
      * anula. Queda escrito acá para que se vea que la diferencia
      * entre las dos puertas es conocida y no accidental.
+     *
+     * Semana 18 · el borrado también pasó al servicio. Son dos líneas
+     * sin lógica, y aun así se movieron, para que la comprobación de
+     * propiedad de las tres escrituras sea una sola.
      */
-    public function destroy(Transaccion $transaccion): Response
+    public function destroy(Request $request, Transaccion $transaccion): Response
     {
-        $this->autorizar($transaccion);
-
-        $transaccion->delete();
+        $this->servicio->eliminar($request->user(), $transaccion);
 
         return response()->noContent();
     }
