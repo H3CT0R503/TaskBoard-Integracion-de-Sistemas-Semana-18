@@ -11,9 +11,9 @@ vars:pre-request {
 }
 
 docs {
-  # TaskBoard · Casos límite (Semana 15)
+  # TaskBoard · Casos límite (Semanas 15 a 18)
 
-  Colección de la Guía N.º 15 (jueves) y N.º 16 (viernes).
+  Colección de las Guías N.º 15, 16, 17, 18 y 20.
   Héctor Alonso Interiano Figueroa · IF-64141-63 · Integración de Sistemas · 02-2026
 
   ## Cómo correrla
@@ -34,16 +34,34 @@ docs {
   Con las correcciones del viernes, la colección completa queda en VERDE sin
   tocar una sola prueba. Eso es una prueba de regresión.
 
-  ## La carpeta 4. Limpieza
+  ## La carpeta 8. Servicios S18
 
-  Cuatro casos crean transacciones de verdad (CL-01, CL-08, CL-16 y CL-17). La
-  última carpeta las borra usando los ids que esos casos guardaron, para que la
+  Quince peticiones de la Semana 18. Las cinco primeras son los cobros con sus
+  tres métodos de pago (tarjeta 3.5 %, transferencia 1.50 fijo, billetera 2 %),
+  más el caso sin `metodo`, que es la promesa de compatibilidad: el cuerpo de
+  siempre tiene que seguir respondiendo 201. S-5 comprueba que un método
+  inventado dé 422 y no 500.
+
+  S-6 a S-10 son la dirección nueva, `PATCH /transacciones/{id}/estado`, con sus
+  cuatro respuestas: 200 al cerrar, 422 si ya estaba cerrada, 422 si el destino
+  no es de cierre, 401 sin token y 404 con la de otro usuario. S-11 comprueba
+  que un PUT que cambia el monto recalcula la comisión, y S-12 a S-15 borran lo
+  que la carpeta creó.
+
+  Lo importante de esta carpeta es que **todas las demás siguen dando lo mismo
+  que antes del refactor**. Para eso sirve: el código de escritura cambió casi
+  entero de lugar y las respuestas no se movieron.
+
+  ## La carpeta 9. Limpieza
+
+  Cuatro casos crean transacciones de verdad (CL-01, CL-08, CL-16 y CL-17). Esa
+  carpeta las borra usando los ids que esos casos guardaron, para que la
   base quede igual que antes de correr y los conteos no se desplacen entre una
   corrida y la siguiente.
 
   ## Una diferencia con la guía
 
-  La guía supone que la columna monto es decimal(10,2), con tope 99 999 999.99.
+  La guía de la Semana 15 supone que la columna monto es decimal(10,2), con tope 99 999 999.99.
   En este proyecto es decimal(8,2), así que el tope real es 999 999.99 y esa es
   la cota que usa la validación. El caso CL-07 sigue siendo válido: 100 000 000
   está muy por encima de los dos topes.

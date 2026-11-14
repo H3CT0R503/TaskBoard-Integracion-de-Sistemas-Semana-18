@@ -354,8 +354,7 @@ class TransaccionApiController extends Controller
     public function store(GuardarTransaccionRequest $request): JsonResponse
     {
         $transaccion = $this->servicio->registrar(
-            $request->user(),
-            $request->validated()
+            $request->user(), $request->validated()
         );
 
         return (new TransaccionResource($transaccion))
@@ -415,13 +414,11 @@ class TransaccionApiController extends Controller
         GuardarTransaccionRequest $request,
         Transaccion $transaccion
     ): TransaccionResource {
-        return new TransaccionResource(
-            $this->servicio->actualizar(
-                $request->user(),
-                $transaccion,
-                $request->validated()
-            )
+        $transaccion = $this->servicio->actualizar(
+            $request->user(), $transaccion, $request->validated()
         );
+
+        return new TransaccionResource($transaccion);
     }
 
     /**
@@ -442,13 +439,11 @@ class TransaccionApiController extends Controller
         CambiarEstadoRequest $request,
         Transaccion $transaccion
     ): TransaccionResource {
-        return new TransaccionResource(
-            $this->servicio->cambiarEstado(
-                $request->user(),
-                $transaccion,
-                $request->validated()['estado']
-            )
+        $transaccion = $this->servicio->cambiarEstado(
+            $request->user(), $transaccion, $request->validated()['estado']
         );
+
+        return new TransaccionResource($transaccion);
     }
 
     /**

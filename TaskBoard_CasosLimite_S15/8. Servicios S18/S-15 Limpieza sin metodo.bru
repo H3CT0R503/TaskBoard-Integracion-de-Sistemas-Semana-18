@@ -1,0 +1,35 @@
+meta {
+  name: S-15 · Borrar la de S-4
+  type: http
+  seq: 15
+}
+
+delete {
+  url: {{host}}/transacciones/{{s18SinMetodo}}
+  body: none
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("S-15 responde 204", function () {
+    expect(res.getStatus()).to.equal(204);
+  });
+}
+
+docs {
+  Limpieza de la carpeta 8.
+
+  Las peticiones S-1 a S-4 crean transacciones de verdad. Estas cuatro las
+  borran con el id que cada una guardo, para que la base quede igual que
+  antes de correr la coleccion y los conteos no se desplacen de una corrida
+  a la siguiente.
+
+  El DELETE tambien pasa por el servicio desde esta semana, asi que de paso
+  comprueba que eliminar() sigue respondiendo 204.
+
+  Esperado: 204.
+}

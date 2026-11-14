@@ -1,0 +1,57 @@
+meta {
+  name: S-11 · El PUT recalcula la comision
+  type: http
+  seq: 11
+}
+
+put {
+  url: {{host}}/transacciones/{{s18Tarjeta}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+body:json {
+  {
+    "comercio_id": 1,
+    "cliente_nombre": "Prueba S18 tarjeta",
+    "monto": 200
+  }
+}
+
+tests {
+  test("S-11 responde 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("S-11 sigue siendo tarjeta", function () {
+    expect(res.getBody().data.metodo).to.equal("tarjeta");
+  });
+  
+  test("S-11 recalcula la comision a 7", function () {
+    expect(res.getBody().data.comision).to.equal(7);
+  });
+}
+
+docs {
+  Semana 18 · la regla que aparecio al refactorizar.
+
+  Este cuerpo no manda metodo, y por eso el metodo NO cambia: sigue siendo
+  tarjeta. Si el valor por omision se aplicara tambien en PUT, una
+  transferencia pasaria a tarjeta sola y en silencio.
+
+  Lo que si cambia es la comision. La de tarjeta es un porcentaje del monto,
+  asi que un monto nuevo con la comision vieja deja la fila diciendo dos cosas
+  que no concuerdan: monto 200 y comision 3.50. No es un dato viejo, es un
+  dato falso.
+
+  La regla vive en el servicio y no en el Form Request, porque para aplicarla
+  hay que saber como se calcula una comision y cual es el metodo que ya tenia
+  la fila, y nada de eso se puede ver en el cuerpo de la peticion. El
+  controlador no se entero de que existe.
+
+  Esperado: 200, metodo tarjeta, comision 7.
+}

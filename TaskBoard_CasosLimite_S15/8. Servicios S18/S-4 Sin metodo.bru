@@ -1,0 +1,52 @@
+meta {
+  name: S-4 · Sin metodo (compatibilidad)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{host}}/transacciones
+  body: json
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+body:json {
+  {
+    "comercio_id": 1,
+    "cliente_nombre": "Prueba S18 sin metodo",
+    "monto": 100
+  }
+}
+
+script:post-response {
+  bru.setVar("s18SinMetodo", res.getBody().data.id);
+}
+
+tests {
+  test("S-4 responde 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("S-4 queda como tarjeta", function () {
+    expect(res.getBody().data.metodo).to.equal("tarjeta");
+  });
+}
+
+docs {
+Semana 18 · la promesa de compatibilidad, escrita como prueba.
+
+  Este cuerpo es el de SIEMPRE: comercio, cliente y monto, sin metodo, porque
+  hasta esta semana la columna no existia. El cliente web de la Semana 14 y los
+  casos limite de la Semana 15 mandan exactamente esto, y tienen que seguir
+  recibiendo 201.
+
+  El valor por omision lo pone prepareForValidation() del Form Request, en un
+  solo lugar, y solo en POST: en un PUT, "no lo mando" significa "no lo quiere
+  cambiar" y no "quiere el de siempre". Eso lo comprueba S-11.
+
+  Esperado: 201 con metodo tarjeta.
+}

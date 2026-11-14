@@ -1,0 +1,49 @@
+meta {
+  name: S-3 · Cobro con billetera (el reto)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{host}}/transacciones
+  body: json
+  auth: inherit
+}
+
+headers {
+  Accept: application/json
+}
+
+body:json {
+  {
+    "comercio_id": 1,
+    "cliente_nombre": "Prueba S18 billetera",
+    "monto": 100,
+    "metodo": "billetera"
+  }
+}
+
+script:post-response {
+  bru.setVar("s18Billetera", res.getBody().data.id);
+}
+
+tests {
+  test("S-3 responde 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("S-3 cobra el 2 por ciento de comision", function () {
+    expect(res.getBody().data.comision).to.equal(2);
+  });
+}
+
+docs {
+Semana 18 · el reto del Laboratorio 5.
+
+  Para que esta peticion pasara de 422 a 201 no se modifico ninguna clase
+  existente: se agrego ComisionBilletera y una linea en AppServiceProvider.
+  ComisionTarjeta, ComisionTransferencia y CalculadoraComision quedaron sin
+  tocar. Eso es el principio abierto/cerrado, medido en archivos.
+
+  Esperado: 201 con comision 2.
+}
