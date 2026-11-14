@@ -38,6 +38,17 @@ use Illuminate\Validation\ValidationException;
 class TransaccionService
 {
     /**
+     * Semana 18 · Laboratorio 5 · la calculadora llega inyectada.
+     *
+     * Misma idea que el servicio en el controlador, un piso más abajo:
+     * el servicio declara que necesita una calculadora de comisiones y
+     * no le importa de qué reglas esté hecha. La D de SOLID.
+     */
+    public function __construct(private CalculadoraComision $calculadora)
+    {
+    }
+
+    /**
      * Registra un cobro nuevo.
      *
      * Antes esto era el cuerpo de store(). Se movió tal cual, sin
@@ -235,15 +246,15 @@ class TransaccionService
     /**
      * La comisión del cobro.
      *
-     * Este if es el que el Laboratorio 5 reemplaza por clases. Queda
-     * aquí, en un método privado y nombrado, por una razón intermedia:
-     * registrar() y actualizar() lo necesitan los dos, y tenerlo
-     * escrito dos veces habría sido la peor versión de todas.
+     * Acá estaba el if de dos ramas que el Laboratorio 5 reemplazó. Lo
+     * que quedó es una llamada, y el método sigue existiendo por una
+     * razón chica pero real: convierte el monto, que viene de la base
+     * de datos como cadena por el cast decimal:2, al float que pide la
+     * calculadora. Ese casteo tiene que pasar en algún lado, y es mejor
+     * una vez acá que en los dos lugares que la llaman.
      */
     private function comision(string $metodo, float|string $monto): float
     {
-        return $metodo === 'tarjeta'
-            ? round($monto * 0.035, 2)
-            : 1.50;
+        return $this->calculadora->calcular($metodo, (float) $monto);
     }
 }
